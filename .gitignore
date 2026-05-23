@@ -1,0 +1,23 @@
+# Pending review — workflows still being scrubbed for PII/secrets.
+# Kept locally for reference, excluded from public repo until reviewed.
+_pending-review/
+
+# Environment / secrets
+.env
+.env.local
+.env.*.local
+*.secret
+
+# n8n local state if anyone runs against this folder
+.n8n/
+
+# OS noise
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor noise
+.vscode/
+.idea/
+*.swp
+*~

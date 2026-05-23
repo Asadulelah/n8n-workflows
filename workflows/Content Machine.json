@@ -1,0 +1,1419 @@
+{
+  "name": "Content Machine",
+  "nodes": [
+    {
+      "parameters": {
+        "trigger": [
+          "message"
+        ],
+        "channelId": {
+          "__rl": true,
+          "value": "C08GJ3CG342",
+          "mode": "list",
+          "cachedResultName": "slacktrigger_n8n_blog"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.slackTrigger",
+      "typeVersion": 1,
+      "position": [
+        1552,
+        3200
+      ],
+      "id": "5e0e39f5-bbe1-49d9-88e3-108541f621ee",
+      "name": "Slack Trigger",
+      "webhookId": "c432a5ad-cd77-4751-ba17-60d5e8dae2d2",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        1552,
+        3392
+      ],
+      "id": "0decc94d-a16e-4ade-a781-7ada775bcbc1",
+      "name": "When chat message received",
+      "webhookId": "202a90db-971d-40e5-a86d-6c3e748f3a40"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Read all incoming items, tolerate either {output: {...}} or {...}\nconst inItems = $input.all().map(i => i.json.output ?? i.json);\n\n// Helper: normalize strings safely\nconst s = (v) => (typeof v === 'string' ? v.trim() : '');\n\n// Render one research record to plain text suitable for X\nfunction renderX(r) {\n  const title = s(r.headline) || s(r.tool_name) || 'Update';\n  const why = s(r.why_it_matters);\n  const points = Array.isArray(r.key_points) ? r.key_points.filter(Boolean).map(p => `• ${p}`).join('\\n') : '';\n  const url = s(r.link) || s(r.url) || '';\n\n  // No emojis, no em dashes, short lines\n  let out = `${title}`;\n  if (why) out += `\\n${why}`;\n  if (points) out += `\\n${points}`;\n  if (url) out += `\\nExplore → ${url}`;\n\n  // Trim to something X-safe; leave hard limit to the X Composer node\n  return out.trim();\n}\n\n// Build one output item per input item\nconst out = inItems.map(r => ({\n  json: {\n    x_text: renderX(r),   // what your X Post Composer should read\n    research: r           // keep full structured data if later nodes need it\n  }\n}));\n\nreturn out;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4080,
+        3424
+      ],
+      "id": "0e40a55a-0287-4cd5-b906-c83d597bd048",
+      "name": "Code2"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        2224,
+        3200
+      ],
+      "id": "0b3655d7-d26b-42f5-9afb-46d4fd6589cc",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Access all input items (each one is a video)\nconst items = $input.all();\n\n// For each video item, join the captions from data[]\nconst result = items.map(item => {\n  const data = item.json.data;\n\n  // Safely join text only if data is an array\n  const fullCaption = Array.isArray(data)\n    ? data.map(d => d.text).join(' ')\n    : '';\n\n  return {\n    json: {\n      full_caption: fullCaption\n    }\n  };\n});\n\nreturn result;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2576,
+        3344
+      ],
+      "id": "bbec286c-26c4-4a48-b2a0-234e4891d3d5",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {
+          "includeUnpaired": true
+        }
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.1,
+      "position": [
+        2912,
+        3344
+      ],
+      "id": "1fd9c032-05f5-458f-b88e-f326d8a574e9",
+      "name": "Merge5"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "chatInput",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        1776,
+        3200
+      ],
+      "id": "27e5152e-3411-4263-a8c6-4d911bbf4c7a",
+      "name": "Split Out"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Starting topic: {{ $json.output }}\nResearch with Tavily and return one JSON object that matches the schema in your system prompt. JSON only.",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "=You are a senior research strategist for Twitter/X announcements.\n\n### Your job\n\nUse your connected **Tavily** search tool to gather fresh, credible info about a single AI **tool** release or **news** item, then return one compact JSON object for the post composer.\n\n### Procedure (do this in order)\n\n1. **Call the Tavily tool first.** Do not answer from memory.\n2. Prefer **official sources** (product sites, company blogs) or top-tier tech/media.\n3. Extract the **canonical URL** for the item.\n4. Derive `source` as the **domain only** from that URL (strip `www.`).\n5. Summarize **why it matters** in practical business language.\n6. Select **2–4 concrete key points** (features, pricing, availability, use cases).\n7. If nothing perfect exists, choose the **best credible** item. Never fabricate.\n\n### Output schema (must match exactly)\n\n```json\n{\n  \"content_type\": \"tool or news\",\n  \"tool_name\": \"string\",\n  \"headline\": \"string (<= 80 chars)\",\n  \"why_it_matters\": \"string (<= 20 words, practical benefit)\",\n  \"key_points\": [\"string\", \"string\"],\n  \"link\": \"https://canonical.url\",\n  \"source\": \"domain.tld\"\n}\n```\n\n**Field rules**\n\n* `content_type`: `\"tool\"` for product/feature launches; otherwise `\"news\"`.\n* `tool_name`: product or entity name (for news, use the company/project).\n* `headline`: human-readable title; no emojis; sentence-case or Title Case.\n* `why_it_matters`: plain, non-technical business value (≤20 words).\n* `key_points`: 2–4 short, concrete bullets. No fluff.\n* `link`: single best canonical page (official preferred; else definitive article).\n* `source`: domain only from `link` (e.g., `anthropic.com`).\n\n### Style constraints\n\n* Avoid hype/buzzwords (“revolutionize,” “game-changer,” “unlock potential”).\n* No speculation or rumors. Be factual and current.\n\n### Output contract (read carefully)\n\n* **Return one valid JSON object only.**\n* **No code fences** (no \\`\\`\\`json).\n* **No labels** like `output:` or `json:`.\n* **No prose** before or after the object.\n* **Double-quoted** keys/values; **no trailing commas**.\n\n### Example shape (illustrative only; do not copy text)\n\n```json\n{\n  \"content_type\": \"tool\",\n  \"tool_name\": \"ExampleTool\",\n  \"headline\": \"ExampleTool launches workflow agents for support teams\",\n  \"why_it_matters\": \"Cuts Tier-1 workload and speeds responses for SMB teams.\",\n  \"key_points\": [\"Routes tickets automatically\", \"Integrates with major CRMs\"],\n  \"link\": \"https://example.com/product\",\n  \"source\": \"example.com\"\n}\n```\n\nIf some fields can’t be confirmed, return the **best possible** object with honest values and a credible `link`/`source`."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.9,
+      "position": [
+        3616,
+        3424
+      ],
+      "id": "0bfdd1ab-3df8-4997-ba88-521f87bebdbd",
+      "name": "Research agent"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {
+          "includeUnpaired": true
+        }
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.1,
+      "position": [
+        4304,
+        3424
+      ],
+      "id": "46219f1f-26b7-49b5-9066-e8eb00f606d5",
+      "name": "Merge1"
+    },
+    {
+      "parameters": {
+        "operation": "toBinary",
+        "sourceProperty": "data[0].b64_json",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        6240,
+        3712
+      ],
+      "id": "45cb4b2f-4b50-4334-82bd-71e41fcbc13c",
+      "name": "Convert to File2",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {
+          "includeUnpaired": true
+        }
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.1,
+      "position": [
+        5328,
+        3280
+      ],
+      "id": "08ad852b-0349-4504-b080-37060f44f4b3",
+      "name": "Merge8"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "operation": "sendAndWait",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C09EBE5M0FL",
+          "mode": "list",
+          "cachedResultName": "all-grow-it-greater"
+        },
+        "message": "=Here is the post - https://docs.google.com/document/d/{{ $json.documentId }}/edit?tab=t.0",
+        "approvalOptions": {
+          "values": {
+            "approvalType": "double"
+          }
+        },
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        6016,
+        3280
+      ],
+      "id": "0a200e42-b252-4cdf-afaa-fc6b18d33070",
+      "name": "Human in the loop1",
+      "webhookId": "085ce980-c9c9-42d5-916d-4e8442d2cfb8",
+      "credentials": {
+        "slackOAuth2Api": {
+          "id": "gbxYEXvZZ3jMGuL9",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "98673ca3-970f-4927-a230-709f3edd99b9",
+              "leftValue": "={{ $json.data.approved }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        6240,
+        3280
+      ],
+      "id": "5b39a284-2945-4647-aad0-c8b0b88cbc70",
+      "name": "If2"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "numberInputs": 3,
+        "options": {
+          "includeUnpaired": true
+        }
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.1,
+      "position": [
+        6464,
+        3456
+      ],
+      "id": "446314e0-53f9-4b14-9bd0-a68a063f452d",
+      "name": "Merge9"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Content: {{ $json.tweet_text }}\n\nFor the given tweet content, generate 1 short, vivid image prompt that visually captures the core idea. \n\nEach prompt must include:\n- **image_prompt**: a clear OpenAI-friendly description (≤20 words, no filler, use concrete nouns and actions)\n- **style**: one visual style (e.g., flat vector, cinematic, 3D render, sketch, vaporwave, minimal poster)\n- **format**: suggested format (\"square\", \"16:9 wide\", or \"vertical portrait\")\n\n### Constraints:\n- Use clear, visual nouns and actions (e.g., \"marketer at laptop,\" \"AI assistant showing campaign dashboard\")\n- Avoid abstract buzzwords (e.g., \"innovation,\" \"synergy,\" \"mindset\")\n- Keep the description short, direct, and visual\n- Style should make sense for a social-media image\n- Default to \"square\" format unless content clearly suggests otherwise\n\n### Output format:\n{\n  \"image_prompt\": \"...\",\n  \"style\": \"...\",\n  \"format\": \"...\"\n}\n",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are an assistant that converts short-form social media posts—specifically tweets—into high-quality image prompts for generative AI models.\n\n### OBJECTIVE:\nExtract the main visual idea from the tweet and convert it into a short, vivid, OpenAI-friendly image prompt with style and format.\n\n### RULES:\n- Keep the image_prompt ≤20 words\n- Use concrete, visual nouns and actions\n- Avoid abstract, non-visual terms (e.g., \"innovation,\" \"success,\" \"future-ready\")\n- Always include a style (flat, 3D render, cinematic, sketch, etc.)\n- Always include a format (square, wide, vertical)\n- Output STRICT JSON only: { \"image_prompt\", \"style\", \"format\" }\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.9,
+      "position": [
+        5616,
+        3712
+      ],
+      "id": "146dc221-5826-40e6-af20-6f160b4efc1e",
+      "name": "Image prompt generator",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "content_idea",
+        "contextWindowLength": 10
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        3616,
+        3648
+      ],
+      "id": "00f76f16-bffb-45dc-8270-c9c54a41995d",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "perplexity_research"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        4672,
+        3648
+      ],
+      "id": "95c6f360-e680-483a-9dc2-2eb3796ecef3",
+      "name": "Simple Memory1"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "linkedin_post"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        5680,
+        3936
+      ],
+      "id": "ace55ca3-cc1b-46ef-9c30-dbca523c166d",
+      "name": "Simple Memory2",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        5552,
+        3936
+      ],
+      "id": "946a14d2-5031-49a0-9ebb-e0f8957347d0",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "E3Scx0egBk6H7gMi",
+          "name": "OpenAi account"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Use only this object:\n{{ JSON.stringify($json.compose_context || $json.research || $json, null, 2) }}\n\nWrite ONE tweet (<=280 chars). Do NOT include links.\n\nFORMAT\n- Start with ONE emoji + short headline (no hype, no title case).\n- Blank line.\n- One plain sentence: why it matters.\n- Optional: up to 2 bullets (•) max, each <=60 chars.\n\nRULES\n- ≤ 280 chars (no links).\n- No hashtags, no @mentions.\n- No em dashes; use colon/period.\n- Plain text only. No JSON. No code fences.\n- If no useful info → say \"skip\".\n",
+        "options": {
+          "systemMessage": "=You write high-signal Twitter/X posts about AI tools/news.\n\nFORMAT\n- Start with ONE emoji and a short headline (no title-case hype).\n- Blank line.\n- One short line: why it matters.\n- Optional: up to 2 bullets (•) from key points.\n- Blank line.\n- End with canonical link only.\n\nRULES\n- Plain text only. No JSON. No code fences.\n- ≤ 280 chars (target 230–260).\n- No hashtags, no @mentions.\n- No em dashes; use colon or period.\n- If any field is missing, skip it (do not invent).\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.9,
+      "position": [
+        4528,
+        3424
+      ],
+      "id": "9e52ebe0-bf2e-488a-80cb-870293557f01",
+      "name": "X Post Composer"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=User query (the marketer’s intent): {{ $('When chat message received').item.json.chatInput }}\n\nYouTube transcript (context): {{ $json.full_caption }}\n\nTop tweets (audience taste): {{ $json.text }}\n\n### TASK:\nGenerate a list of **tweet-friendly marketing content ideas** that directly address the user query.  \nEach idea must be simple enough for a 280-character post but strong enough to expand into a video or one-pager.\n\nFor each idea, include:\n- **Title**: ≤60 chars, clear and punchy  \n- **Hook**: Scroll-stopping opener in Twitter tone  \n- **Angle**: A unique POV showing how marketers (esp. beginners) can use AI + n8n for a marketing use case  \n- **Format**: \"tweet\", \"thread\", or \"short video\"  \n\n### Constraints:\n- Stay focused on the user query (ignore transcript noise unrelated to the query).  \n- Strictly marketing use cases only — no technical tutorials or jargon.  \n- Use plain, everyday marketing language.  \n- Make ideas practical and beginner-friendly.  \n- Mirror tones and styles from the “Top tweets” context.  \n- Output as a JSON array of objects with keys: `title`, `hook`, `angle`, `format`.  \n",
+        "options": {
+          "systemMessage": "=You are an expert content strategist specialized in short-form, high-impact content for marketers.\n\n### OBJECTIVE:\nGenerate 3–5 **tweet-ready content ideas** by analyzing:\n1. Insights from YouTube transcripts in our niche\n2. Themes and tones from our top performing tweets\n\n### RULES:\n- Focus on practical, beginner-friendly marketing applications of AI and n8n\n- Emphasize hooks and POVs that capture attention fast\n- Tie ideas to formats that naturally work on X (tweets, short threads, quick videos)\n- Avoid tech jargon, abstract theory, or content that feels too “developer”\n- Output STRICT JSON array of objects with:\n  { \"title\": \"\", \"hook\": \"\", \"angle\": \"\", \"format\": \"\" }\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.9,
+      "position": [
+        3136,
+        3424
+      ],
+      "id": "5800456b-d223-49e6-a3e1-198380efb18c",
+      "name": "Topic Miner (X)"
+    },
+    {
+      "parameters": {
+        "text": "={{ $json.tweet_text }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.twitter",
+      "typeVersion": 2,
+      "position": [
+        6688,
+        3472
+      ],
+      "id": "fe615281-8e4d-49be-894d-60073b363907",
+      "name": "Create Tweet",
+      "credentials": {
+        "twitterOAuth2Api": {
+          "id": "z9VtnKW5KniR4Ewd",
+          "name": "X account"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "folderId": "10VeEoRXufwytkYGcROc5N5r4bGLZTUMQ",
+        "title": "X posts"
+      },
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [
+        5104,
+        3200
+      ],
+      "id": "ef688cbf-8210-42b6-b119-a94bc45c25fd",
+      "name": "X doc creation1",
+      "executeOnce": true,
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "S5aEaelNJCDeh0xd",
+          "name": "Google Docs account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentURL": "=https://docs.google.com/document/d/{{ $json.id }}/edit",
+        "actionsUi": {
+          "actionFields": [
+            {
+              "action": "insert",
+              "text": "={{ $json.review_text }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [
+        5680,
+        3280
+      ],
+      "id": "3345ea88-7133-4743-85d7-7f72da40e986",
+      "name": "X content doc1",
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "S5aEaelNJCDeh0xd",
+          "name": "Google Docs account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/images/generations",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"gpt-image-1\",\n  \"prompt\": \"{{ $json.output.image_prompt }}\",\n  \"n\": 1,\n  \"size\": \"{{ $json.output.format === '16:9 wide' ? '1536x864' : ($json.output.format === 'vertical portrait' ? '1024x1536' : '1024x1024') }}\"\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        6016,
+        3712
+      ],
+      "id": "8b5820db-551c-4c24-9976-499a9709b16d",
+      "name": "X image generation using openAI1",
+      "retryOnFail": false,
+      "credentials": {
+        "openAiApi": {
+          "id": "E3Scx0egBk6H7gMi",
+          "name": "OpenAi account"
+        }
+      },
+      "disabled": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        3488,
+        3648
+      ],
+      "id": "4203bb58-a93d-4d61-8abe-38ad04674904",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "WyfeTFUBchllIpKa",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "let raw = ($input.first().json.output || '').toString().trim();\n\n// 1) Clean formatting\nlet cleaned = raw\n  .replace(/\\r\\n/g, '\\n')\n  .replace(/\\n{3,}/g, '\\n\\n')   // collapse >2 breaks\n  .replace(/\\s+$/gm, '')        \n  .trim();\n\n// 2) Enforce 280 chars\nif (cleaned.length > 280) {\n  cleaned = cleaned.slice(0, 277) + '…';\n}\n\n// 3) Build review text\nconst review_text = [\n  \"Proposed X Post:\",\n  cleaned,\n  \"\",\n  `Characters: ${cleaned.length} / 280`\n].join('\\n');\n\n// 4) Image prompt seed\nconst image_prompt = cleaned\n  .replace(/\\s+/g, ' ')\n  .slice(0, 160);\n\nreturn [{\n  json: {\n    tweet_text: cleaned,\n    review_text,\n    image_prompt\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4880,
+        3424
+      ],
+      "id": "296165bf-2bc8-462f-a9de-d7bee132cb62",
+      "name": "X Review & Media Router"
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"required\": [\"image_prompt\",\"style\",\"format\"],\n  \"properties\": {\n    \"image_prompt\": {\"type\":\"string\"},\n    \"style\": {\"type\":\"string\"},\n    \"format\": {\"type\":\"string\",\"enum\":[\"square\",\"16:9 wide\",\"vertical portrait\"]}\n  }\n}\n"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        5808,
+        3936
+      ],
+      "id": "a7758b81-d05b-4922-9953-d52c8579e27e",
+      "name": "Structured Output Parser",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"required\": [\n    \"content_type\",\n    \"tool_name\",\n    \"headline\",\n    \"why_it_matters\",\n    \"key_points\",\n    \"link\",\n    \"source\"\n  ],\n  \"properties\": {\n    \"content_type\": { \"type\": \"string\", \"enum\": [\"tool\", \"news\"] },\n    \"tool_name\": { \"type\": \"string\" },\n    \"headline\": { \"type\": \"string\", \"maxLength\": 80 },\n    \"why_it_matters\": { \"type\": \"string\" },\n    \"key_points\": {\n      \"type\": \"array\",\n      \"items\": { \"type\": \"string\" },\n      \"minItems\": 2,\n      \"maxItems\": 4\n    },\n    \"link\": { \"type\": \"string\" },\n    \"source\": { \"type\": \"string\" }\n  },\n  \"additionalProperties\": false\n}\n"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        3872,
+        3648
+      ],
+      "id": "9391f22d-10ae-4142-862a-cee819ee1344",
+      "name": "Structured Output Parser1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.apify.com/v2/acts/streamers~youtube-scraper/run-sync-get-dataset-items?token=YOUR_APIFY_API_TOKEN",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n    \"dateFilter\": \"month\",\n    \"downloadSubtitles\": false,\n    \"hasCC\": false,\n    \"hasLocation\": false,\n    \"hasSubtitles\": false,\n    \"is360\": false,\n    \"is3D\": false,\n    \"is4K\": false,\n    \"isBought\": false,\n    \"isHD\": false,\n    \"isHDR\": false,\n    \"isLive\": false,\n    \"isVR180\": false,\n    \"lengthFilter\": \"between420\",\n    \"maxResultStreams\": 0,\n    \"maxResults\": 10,\n    \"maxResultsShorts\": 10,\n    \"preferAutoGeneratedSubtitles\": true,\n    \"saveSubsToKVS\": true,\n    \"searchQueries\": [\n        \"{{ $json.chatInput }}\"\n    ],\n    \"sortingOrder\": \"views\",\n    \"subtitlesLanguage\": \"en\",\n    \"videoType\": \"video\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2000,
+        3200
+      ],
+      "id": "fc483b48-8fc2-47c4-bc74-fa0b1229e0ca",
+      "name": "Yt Search results"
+    },
+    {
+      "parameters": {
+        "url": "https://api.apify.com/v2/acts/pintostudio~youtube-transcript-scraper/run-sync-get-dataset-items?token=YOUR_APIFY_API_TOKEN",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n    \"videoUrl\": \"{{ $json.output.url }}\"\n} ",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3200,
+        3120
+      ],
+      "id": "e33f490b-915b-49f8-b5b0-7a310126b819",
+      "name": "Video Transcriber"
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"required\": [\"keep\", \"reason\", \"title\", \"url\"],\n  \"properties\": {\n    \"keep\": { \"type\": \"boolean\" },\n    \"reason\": { \"type\": \"string\", \"maxLength\": 80 },\n    \"title\": { \"type\": \"string\", \"maxLength\": 150 },\n    \"url\": { \"type\": \"string\" },\n    \"confidence\": { \"type\": \"number\", \"minimum\": 0, \"maximum\": 1 }\n  },\n  \"additionalProperties\": false\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        2704,
+        3200
+      ],
+      "id": "b4e9cdc2-8d1f-4cf3-8407-c4f1ba49547b",
+      "name": "Structured Output Parser2"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "Curator"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        2592,
+        3200
+      ],
+      "id": "866a2ea1-ef66-4ca4-957a-5e392f812d3d",
+      "name": "Simple Memory3"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=User query: {{ $('When chat message received').item.json.chatInput }}\n\nCandidate video:\n{{ JSON.stringify({\n  title: $json.title,\n  url: $json.url || $json.link,\n  description: $json.description || $json.translatedText || '',\n  channel: $json.channelName || $json.channel || '',\n  publishedAt: $json.date || $json.publishedAt || ''\n}, null, 2) }}\n\nTASK:\nReturn a single JSON object with:\n- keep: true if this video directly helps the user’s query (AI tools/news for marketers; practical; possibly automatable with n8n), else false\n- reason: ≤ 12 words (why/why not)\n- title: normalized title (trim noise)\n- url: canonical url\n- confidence: 0–1\n\n",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "=You are a strict curator for YouTube results. Decide if a single video is useful for a marketer-focused query about AI tools/news and automation (non-technical), ideally relevant to n8n workflows.\n\nRules:\n- Judge ONLY from the provided title/description/channel/date.\n- Prefer official demos, feature launches, pricing/availability updates, or practical how-to with measurable outcomes.\n- Exclude shorts, podcasts, livestreams, opinion/motivation.\n- English only. If language is unclear, be conservative.|\n\nHere’s exactly what a **good sample output** from your Curator AI Agent should look like (after one video title/detail goes through it):\n\n```json\n{\n  \"keep\": true,\n  \"reason\": \"Strongly related to AI + n8n for sales automation\",\n  \"title\": \"I Built This AI Agent in 2 Hours (and Got Paid $1200)\",\n  \"url\": \"https://www.youtube.com/watch?v=8c6iCpJ9HP0\",\n  \"confidence\": 0.87\n}\n```\n\nOr if the video is irrelevant:\n\n```json\n{\n  \"keep\": false,\n  \"reason\": \"Video is about gaming content, unrelated to marketing or AI workflows\",\n  \"title\": \"NEW Sim AI DESTROYS N8N? (FREE!)\",\n  \"url\": \"https://www.youtube.com/watch?v=tzi4hxRAopI\",\n  \"confidence\": 0.15\n}\n```\n\n\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        2528,
+        3056
+      ],
+      "id": "b91d4f76-c139-4707-9b85-d16d7b9620de",
+      "name": "Curator"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "ccfe1ac6-17b9-4c90-a5ac-ce84e7ced897",
+              "leftValue": "={{ $json.output.keep === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1776,
+        3392
+      ],
+      "id": "76a8c10d-ff1b-422e-b9db-889248205e8c",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Eat the item and return nothing\nreturn [];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2000,
+        3392
+      ],
+      "id": "870f37b4-11a0-4aed-b551-a29bc624bd60",
+      "name": "Code5",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Use this tool to search the internet",
+        "query": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Query', ``, 'string') }}",
+        "options": {}
+      },
+      "type": "@tavily/n8n-nodes-tavily.tavilyTool",
+      "typeVersion": 1,
+      "position": [
+        3744,
+        3648
+      ],
+      "id": "9c7588ef-c306-41da-96ff-bdf4a462e678",
+      "name": "Tavily1",
+      "credentials": {
+        "tavilyApi": {
+          "id": "VVpMIqSCKArMyqQD",
+          "name": "Tavily account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        2480,
+        3200
+      ],
+      "id": "7251c7c8-3fc6-461c-b17b-c64e17ecacd9",
+      "name": "Google Gemini Chat Model1",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "WyfeTFUBchllIpKa",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        3216,
+        3648
+      ],
+      "id": "1a6297ec-e196-44a0-af55-5a8b5147f7d6",
+      "name": "Google Gemini Chat Model2",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "WyfeTFUBchllIpKa",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        4544,
+        3648
+      ],
+      "id": "916ef867-f673-4960-b68e-290b726d0c68",
+      "name": "Google Gemini Chat Model3",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "WyfeTFUBchllIpKa",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "7873eacc-57ef-4951-b466-69551ff79bc2",
+              "leftValue": "={{ $json.output.keep === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        2912,
+        3056
+      ],
+      "id": "e0d845dc-d7d2-41e6-a37b-951e728a86c0",
+      "name": "Filter"
+    },
+    {
+      "parameters": {
+        "content": "## 1. Triggered by a topic sent in Slack",
+        "height": 100,
+        "width": 250,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1552,
+        3050
+      ],
+      "typeVersion": 1,
+      "id": "step-note-content-SlackTrigger",
+      "name": "Sticky Note Step 1"
+    },
+    {
+      "parameters": {
+        "content": "## 2. Searches YouTube for top videos on the topic",
+        "height": 100,
+        "width": 350,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        2000,
+        3050
+      ],
+      "typeVersion": 1,
+      "id": "step-note-content-YtSearchresults",
+      "name": "Sticky Note Step 2"
+    },
+    {
+      "parameters": {
+        "content": "## 3. AI filters out videos that aren't relevant",
+        "height": 100,
+        "width": 300,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        2528,
+        2906
+      ],
+      "typeVersion": 1,
+      "id": "step-note-content-Curator",
+      "name": "Sticky Note Step 3"
+    },
+    {
+      "parameters": {
+        "content": "## 4. Extracts tweet-ready hooks and practical angles",
+        "height": 100,
+        "width": 350,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        3136,
+        3274
+      ],
+      "typeVersion": 1,
+      "id": "step-note-content-TopicMinerX",
+      "name": "Sticky Note Step 4"
+    },
+    {
+      "parameters": {
+        "content": "## 5. Drafts the actual tweets and generates an image prompt",
+        "height": 100,
+        "width": 350,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        4528,
+        3274
+      ],
+      "typeVersion": 1,
+      "id": "step-note-content-XPostComposer",
+      "name": "Sticky Note Step 5"
+    }
+  ],
+  "pinData": {
+    "Image prompt generator": [
+      {
+        "json": {
+          "output": {
+            "image_prompt": "marketer relieved using AI tool on laptop, clearing cluttered desk filled with spreadsheets",
+            "style": "flat vector",
+            "format": "square"
+          }
+        }
+      }
+    ],
+    "Merge5": [
+      {
+        "json": {
+          "full_caption": ""
+        }
+      },
+      {
+        "json": {
+          "full_caption": ""
+        }
+      },
+      {
+        "json": {
+          "full_caption": ""
+        }
+      },
+      {
+        "json": {
+          "full_caption": ""
+        }
+      },
+      {
+        "json": {
+          "full_caption": ""
+        }
+      },
+      {
+        "json": {
+          "full_caption": " Hello everyone, Raza here. In this video, we will take a first look at code apps, which is a new way for developers to bring Power Apps capabilities into web apps built with idees like Visual Studio Code. These React-based apps can take advantage of the 1500 plus connectors in the Power Platform ecosystem, manage platform capabilities, and with one click deploy these web apps as code apps in Power Platform. So let's begin. [Music]  Power Apps empowers developers of all skill sets, including developers building web apps in idees like Visual Studio Code to efficiently build and run applications on a managed platform, the Power Platform. The benefit all the power apps capabilities are available to code apps including out ofthe-box Microsoft entra authentication authorization access to 1500 plus power platform connectors which can be directly called from JavaScript. Devs get full control over the UI and logic. Any dev with a command line can publish and host their line of business applications in Power Platform.  Let's begin with code apps. In GitHub, we have the Power Apps code apps repo which is packed with information about code apps, how to create your first app, how to connect to data sources like data versse, SQL, SharePoint, use custom connectors and more. Prerequisites code apps requires several dev tools like Visual Studio Code, Git.NET, Node.js, and npm to be available on the command line. We will need the Power Apps CLI. Visual Studio Code has the extension for Power Platform tools. So, let's begin with creating a code app from scratch in Visual Studio Code. Start a new terminal. I already have a folder in my C drive called code apps. We'll use node package manager and vit to create my first code app. Vit is a modern front-end build tool that's designed to make web development faster. Hit enter. My package, I'll call it my first code app. My project is ready. Let me go ahead select that folder and load it in Visual Studio Code. Start a new terminal. npm install. Install the node type definitions. The vit config typescript file. I'll update. All of this is in the documentation. Now, npm rundev. This will run locally. Let's click. And here is my main source file from my apps root folder. This is my TypeScript React component file that's running on my local host. Ctrl C to stop the local server.  Now let's initialize our code app. I have the Power Platform extension added to my IDE. I'll begin with pack O create. This allows me to authenticate the Power Platform CLI against my Power Platform tenant. So I log in with my Power Platform account. Once I'm authenticated successfully, it will validate the connection and create my O profile. Next, I'll select my Power Platform environment pack environment. Select - env. I need to give my environment URL. This will be my power platform environment in which I will deploy this code app and go to session details. Copy the environment URL. Paste. Submit. And it's connected me to my environment called dev training. Let's initialize a code app. Pack code in it. Display name. I'll call this my first code app. Now notice the moment we do this, there is a power.config.json file in our project that gets instantiated. Next step, we will install the power SDK. We are installing it from the GitHub release in package.json. The dev server that's going to be used wheat. Now let's update this to include packod run and vit. Under source we'll add a new file power provider.typescript. We'll paste the following code that's provided in the documentation. And then in the main file let's import the power provider and update the main file as follows. Now that we've made these updates, let's once again perform npm rundev. This time if you observe, it will run the wed server but also start the power SDK server. Now we can test the app locally using the following URL. Let's fire that URL in the browser. This is my app running locally. Let's close this. Ctrl C to stop the server. Now to push this app and run it on Power  Apps, let's first run the build. Build succeeded. Pack code push. This will push this app on Power Apps for my environment that I set up. Done. Says I can test the app on the following URL. Let's open. This is launching my code app that I built in Visual Studio Code Reactbased as a Power App hosted in a Power Platform environment. Signed in as Raza make. powerapps.com in my environment. Here is my first code app that I deployed and observe the type of the app. It's code. I can run the app. I cannot edit from my IDE. I can make updates and then redeploy it to the environment. Details of this app. license designation is premium.  Next, let's connect our code app to data. Now, Power Platform has over 1500 plus connectors. And in our Power Platform environments, we can create connections to those connectors. These are my connections in this environment. the command pack connection list and this will list out all my connections in the environment that I have connected in Visual Studio Code. I get the connection ids and I get the app ids. Let's try and connect to the Office 365 users connector. The app ID is shared Office 365 and the connection ID is right here. To add a connection to my code app, pack code add data source, the app ID, the connection ID, hit enter, and the data source has been added to my app. It's called Office 365 users. the source folder under services. It adds the Office 365 user service TypeScript file which exposes the connector functions. I can use the functions in this file to build my app. I want to make changes to my main app file.  We are in the age of AI and copilots. Why not leverage the GitHub copilot which I have set in agent mode? I can ask the copilot to make updates to my app. Build me a profile screen to show my profile information, name, email, and photo. GitHub copilot springs into action. Updates my main app file. It has full context of the connected data source. Done. I'll say keep. I'll ask it to run the build. Continue. Runs the build function. There were some errors. Fixes them. Click continue. Build successful. npm rundev. Going to run this app locally. Notice the connection. I'll say allow. And here is the result. My profile image, name, and email.  In my main app file, it's calling my profile screen. This is where it's printing the name. Let's make a change. Save the file. The hot module replacement in action. Immediately, it makes the update.  Next, I'll add a connection to SharePoint. Here is my connection ID. This is my data set and this is my table. I'm connecting to tabular data a SharePoint list called work progress tracker. This is my SharePoint list. Let's work with GitHub copilot. update my main app file to show data from the work progress tracker data source that I have added to my app. I'll also ask it to run the build. In case there are any errors, GitHub Copilot will fix it for me. The build runs successfully. Let's run it locally. Connect it to Power Apps. Observe the connections. And here is the results. It's getting data from my SharePoint list. This is an image of another app that I will provide as inspiration to GitHub copilot. I've uploaded the image. Asked GitHub Copilot to design the app based on it. Here is my app. My server is running. Notice as the changes are made, the app is getting updated live. And here is the app. It's built my dashboard aggregating data from my data source. Here's my to-do list, the form of those swim lanes. I also asked her to add a feature to drag and drop tasks across swim lanes. And as that happens, go update the status. I can build my Reactbased web apps in Visual Studio Code and deploy these to the Power Platform.  Here is an example of a quick achart that I built by simply connecting to the Office 365 users connector. Here is an app that is connected to data. If you enjoyed this video then do like, comment and subscribe to my YouTube channel and thank you so much for watching."
+        }
+      },
+      {
+        "json": {
+          "full_caption": "Did you know that GitHub just released an impressive new open-source toolkit that empowers developers to use your AI tool of choice? But that's GitHub Copilot, Cloud Code, Gemini CLI, and many others for specdriven development. It's called SpecKit. Instead of relying on Vive Coding, where you can just throw a prompt to an AI agent and hope the code works, SpecKit makes the specification the central artifact of your workflow. Specs become living executable documents that guide your coding agent evolve with your project and keep everything aligned. But why would you even use specit? Well, this is an open-source tool that is under the MIT license and it is fully hosted on GitHub by centering your development process around specifications. It essentially works in a four-phase process where you have different checkpoints. You first start off with the specification where you define the goals and the user outcomes. The planning phase where it maps stacks architecture and constraints. You have the task phase which is where it breaks it down into small testable units. And lastly is the implementation where the AI codes step by step for review. And overall with all of this being taken into account, specs become living artifacts which is ensuring better alignment, reliability, and higher quality AI powered development. Also guys, I've been posting a lot more on my second channel, and this is where my team and I have been trying to focus on a lot of news topics. So, if you're interested, go ahead and take a look at this with the link in the description below, cuz there is a lot of information that you can gain from these different videos. To get started, it is really simple. Head over to the spec kit toolkit on GitHub, which I'll leave a link to in the description below. And essentially, it's a CLI tool that you can work with called specify. You can initialize it to your project depending on your coding agent you're using. So if you're using something like cloud code, you can initialize it to that with this command over here. You can simply go ahead and copy this portion and then paste in your project name. So for example, I can paste in this command that was given from GitHub and then I can specify my project name and click enter. So you can see right here that it has created the new project based off of the name that I given it and it is going to request me to choose my AI assistant. So I have the option to use GitHub copot code as well as Gemini CLI and I can even use another coding agent which I would have to configure in the back end. But what I recommend you use this with is obviously GitHub copot. But cloud code works really well with specify. So I can go ahead and click enter and it's going to initialize the specify project. This is the project name that I have. It's going to have it so that it checks the required tools, select the AI assistant, which is Claude, fetch the latest release, download the template, and essentially just initialize that overall project. Now, what it recommends that I do is head over to the specified project, but it also recommends that I open it up within my IDE, and I can use the slash commands with cloud code. This is where you can type in the slash command in any file to see available commands specified to create specifications. The slash plan command to create the implementation plan and the /task command to generate the task. And then it is going to update the constitution.mmd file within your project's non-negotiable principle. And essentially that is how you can get started with specdriven development. Like we had mentioned before, it works in a four-step process where you specify plan, task, and implement. So I've opened this up within VS Code. I can open up a new terminal and we can follow the steps that it has told us. So what I can do now is within my specified project folder with cloud code initialized, I can now use any of the slash commands with spec kit. So what I can do now is use these different slash commands like plan. I can specify use the task command as well as implementation. Start off whatever you're trying to do, you want to first create the spec. You want to specify the command to describe what you want to build and focus on what and why, not just the text stack. So in this case, they recommend that you specify use the /sp specify command. And you can paste in whatever prompt you want. So I'm just going to use the example that they have. And I'm specifying that I want to build an application that can build and organize my photos in a separate photo album. And you can see that it is going to create the specifications for the AI to follow. Next is where we're going to then drop it off to the planning phase. So in this case it will use minimal number of libraries use vanilla HTML CSS etc. So the second phase is the technical implementation phase with the planning. So after it finishes creating the spec file we can then use the plan command to provide the text stack and the architecture. So it looks like it has finished generating the specifications where it gives a rough guideline on what we need to do to create this. So now we can actually take a look at this. So if you click on specifications, if you open the preview up, it'll give you a rundown on the specifications that the AI agent will follow. Now what we can do is go on to the next phase. This is the planning phase. So if you scroll all the way to the bottom, we can paste in the next command, which is /pl, which is where we're going to have it now generate the implementation road map for all the features it has specified within the specification MD file. Before we get started, I just want to mention that you should definitely go ahead and subscribe to the world of AI newsletter. I'm constantly posting different newsletters on a weekly basis. So, this is where you can easily get up-to-date knowledge about what is happening in the AI space. So, definitely go ahead and subscribe as this is completely for free. So, you can see right now that it will also go ahead and configure all the different templates that will be necessary for the AI agent to follow. It'll also focus on creating all the different scripts to use as well as keeping a memory of everything that was generated. Now what I can do is have it ready for implementation where I can run the /task command to command the generated order implementation task following the different principles that were basically outlined with the different lining phases. So essentially now it's going to create the actionable list and it's going to have the agent break it down and implement it. So it will then work on creating it and now it will thoroughly focus on following the each different specifications that were listed out from the planning and specification phase and it's going to implement all of it. So rather than going ahead and having an AI coding agent take your prompt and developing a full-on application which probably has a lot of errors, it hallucinates and doesn't generate almost perfectly. In this case, with the specd driven workflow, it is going to be able to thoroughly work on iterating on your project idea. With the planning phase, which you can iterate on further and add more specifications, it has less chances to elucinate, uses less tokens in my opinion. You can see quite quickly it was able to focus on developing all the different features that we wanted a part of our photo album organizer. You can upload different thumbnails like the spec hit thumbnail over here. You can upload the photo to the different uh the albums that you have uploaded or created. And you also have the ability to manage all these different albums within the main tab. This is a really simple app that lets you organize your different photo albums. But more importantly, it was able to follow the structure as well as focus on the back end as well as the front-end system. So, it is going to be able to thoroughly develop your app with all the features that are actually functional and gets the job done with higher quality. If you like this video and would love to support the channel, you can consider donating to my channel through the super thanks option below. Or you can consider joining our private Discord where you can access multiple subscriptions to different AI tools for free on a monthly basis, plus daily AI news and exclusive content, plus a lot more. Now, there's a lot more to this and it's recommended that you actually take a look at the documentation to understand the best sort of output you can get with spec driven development because there's a lot more to it when it comes to actually prompting with these different phases. So, I definitely recommend that you read through this so that you get a better understanding of how you can approach these different phases to get the best results. I'll leave a link to this GitHub repository in the description below. But with that thought, guys, I hope you enjoyed today's video and got some sort of value. This is something that you can easily get started with today and easily build high quality apps or just generate highquality code. But with that thought guys, thank you guys so much for watching. Make sure you go ahead and subscribe to the second channel if you haven't already. Make sure you join the newsletter, join the private Discord, follow me on Twitter, and lastly, make sure you guys subscribe, turn on notification bell, like this video, and please take a look at our previous videos because there is a lot of content that you will definitely benefit from. But with that thought, guys, have an amazing day, spread positivity, and I'll see you guys fairly shortly. He suffers."
+        }
+      },
+      {
+        "json": {
+          "full_caption": ""
+        }
+      },
+      {
+        "json": {
+          "full_caption": ""
+        }
+      },
+      {
+        "json": {
+          "full_caption": ""
+        }
+      }
+    ]
+  },
+  "connections": {
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "Split Out",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code2": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Curator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Merge5",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge5": {
+      "main": [
+        [
+          {
+            "node": "Topic Miner (X)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out": {
+      "main": [
+        [
+          {
+            "node": "Yt Search results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Research agent": {
+      "main": [
+        [
+          {
+            "node": "Code2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge1": {
+      "main": [
+        [
+          {
+            "node": "X Post Composer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge8": {
+      "main": [
+        [
+          {
+            "node": "X content doc1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Human in the loop1": {
+      "main": [
+        [
+          {
+            "node": "If2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If2": {
+      "main": [
+        [
+          {
+            "node": "Merge9",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert to File2": {
+      "main": [
+        [
+          {
+            "node": "Merge9",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Merge9": {
+      "main": [
+        [
+          {
+            "node": "Create Tweet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Image prompt generator": {
+      "main": [
+        [
+          {
+            "node": "X image generation using openAI1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "Research agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory1": {
+      "ai_memory": [
+        [
+          {
+            "node": "X Post Composer",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory2": {
+      "ai_memory": [
+        [
+          {
+            "node": "Image prompt generator",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Image prompt generator",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "X Post Composer": {
+      "main": [
+        [
+          {
+            "node": "X Review & Media Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Topic Miner (X)": {
+      "main": [
+        [
+          {
+            "node": "Research agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "X doc creation1": {
+      "main": [
+        [
+          {
+            "node": "Merge8",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "X content doc1": {
+      "main": [
+        [
+          {
+            "node": "Human in the loop1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "X image generation using openAI1": {
+      "main": [
+        [
+          {
+            "node": "Convert to File2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Research agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "X Review & Media Router": {
+      "main": [
+        [
+          {
+            "node": "X doc creation1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge8",
+            "type": "main",
+            "index": 1
+          },
+          {
+            "node": "Merge9",
+            "type": "main",
+            "index": 1
+          },
+          {
+            "node": "Image prompt generator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Image prompt generator",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser1": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Research agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Yt Search results": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Video Transcriber": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser2": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Curator",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory3": {
+      "ai_memory": [
+        [
+          {
+            "node": "Curator",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Curator": {
+      "main": [
+        [
+          {
+            "node": "Filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Code5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code5": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tavily1": {
+      "ai_tool": [
+        [
+          {
+            "node": "Research agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack Trigger": {
+      "main": [
+        [
+          {
+            "node": "Split Out",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Curator",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Topic Miner (X)",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model3": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "X Post Composer",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter": {
+      "main": [
+        [
+          {
+            "node": "Video Transcriber",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Tweet": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "d95b5619-bd64-4e71-87ad-a7dc97fd3db3",
+  "meta": {
+    "instanceId": "18b6eb5e59e3420ea2f59615df8d2d11aaecf1d51bc55b768a83ff438cdaae56"
+  },
+  "id": "mtWmuadCFmbUNFlN",
+  "tags": []
+}

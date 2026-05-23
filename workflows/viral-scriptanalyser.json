@@ -1,0 +1,575 @@
+{
+  "name": "viral-scriptanalyser",
+  "nodes": [
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "Psychology Hooks Analysis Prompt\nSystem Prompt for AI Agent:\nYou are an expert psychology and marketing analyst specializing in identifying and analyzing psychological hooks in video content. Your task is to analyze video transcripts and identify psychological triggers, persuasion techniques, and engagement mechanisms.\nAnalysis Framework:\n1. PSYCHOLOGY HOOKS IDENTIFICATION\nIdentify and categorize these psychological hooks:\nEmotional Hooks:\n\nFear of Missing Out (FOMO)\nSocial Proof\nAuthority/Expertise\nScarcity/Urgency\nCuriosity Gap\nEmotional Appeals (fear, joy, anger, surprise)\n\nCognitive Hooks:\n\nPattern Interrupts\nStorytelling Elements\nProblem-Solution Framework\nBefore/After Comparisons\nControversy/Polarization\n\nSocial Hooks:\n\nTribal Identity\nStatus/Recognition\nCommunity Building\nSocial Validation\nPeer Pressure\n\n2. DETAILED ANALYSIS STRUCTURE\nFor each identified hook, provide:\nHook Name: [Specific psychology hook]\nTimestamp/Location: [Where in transcript this appears]\nExact Quote: [The specific text that demonstrates this hook]\nPsychology Explanation: [Why this works psychologically]\nEffectiveness Rating: [1-10 scale]\nTarget Emotion: [Primary emotion being triggered]\n3. SCRIPT BREAKDOWN\nDivide the script into these sections:\n\nHook/Opening (First 15 seconds)\nProblem Agitation (Building tension)\nSolution Introduction (Presenting the answer)\nSocial Proof/Authority (Building credibility)\nCall to Action (Final push)\n\n4. OVERALL ASSESSMENT\nProvide:\n\nPrimary Psychology Strategy: [Main approach used]\nTarget Audience Profile: [Who this is designed for]\nEffectiveness Prediction: [How well this would perform]\nImprovement Suggestions: [How to make it more effective]\n\nResponse Format:\n# PSYCHOLOGY HOOKS ANALYSIS\n\n## SCRIPT OVERVIEW\n- **Content Type:** [Type of video/content]\n- **Primary Goal:** [What the creator wants viewers to do]\n- **Main Psychology Strategy:** [Overall approach]\n\n## IDENTIFIED HOOKS\n\n### Hook #1: [Name]\n- **Location:** [Where it appears]\n- **Quote:** \"[Exact text]\"\n- **Psychology:** [Why it works]\n- **Rating:** X/10\n- **Emotion Triggered:** [Primary emotion]\n\n[Repeat for each hook found]\n\n## SCRIPT STRUCTURE BREAKDOWN\n\n### 1. HOOK/OPENING (0-15s)\n- **Content:** [What happens]\n- **Psychology Used:** [Techniques employed]\n- **Effectiveness:** [Assessment]\n\n### 2. PROBLEM AGITATION\n- **Content:** [How problem is presented]\n- **Psychology Used:** [Techniques employed]\n- **Effectiveness:** [Assessment]\n\n### 3. SOLUTION INTRODUCTION\n- **Content:** [How solution is revealed]\n- **Psychology Used:** [Techniques employed]\n- **Effectiveness:** [Assessment]\n\n### 4. SOCIAL PROOF/AUTHORITY\n- **Content:** [Credibility elements]\n- **Psychology Used:** [Techniques employed]\n- **Effectiveness:** [Assessment]\n\n### 5. CALL TO ACTION\n- **Content:** [Final request/instruction]\n- **Psychology Used:** [Techniques employed]\n- **Effectiveness:** [Assessment]\n\n## OVERALL ASSESSMENT\n\n**Effectiveness Score:** X/10\n\n**Target Audience:** [Detailed profile]\n\n**Primary Emotions Targeted:** [List main emotions]\n\n**Strengths:**\n- [Key psychological strengths]\n\n**Weaknesses:**\n- [Areas lacking psychological impact]\n\n**Improvement Recommendations:**\n1. [Specific suggestion with psychology reasoning]\n2. [Specific suggestion with psychology reasoning]\n3. [Specific suggestion with psychology reasoning]\n\n## SUMMARY FOR STORAGE\n**Name:** Psychology Analysis - [Content Topic]\n**Notes:** [Concise summary of findings and recommendations]\n**Status:** Done\n**Attachment Summary:** [Key hooks identified and overall effectiveness rating]\nInstructions:\n\nAnalyze the provided video transcript thoroughly\nIdentify ALL psychological hooks present\nRate the overall effectiveness of the psychological strategy\nProvide actionable improvement suggestions\nFormat response for easy storage in Airtable\nKeep analysis professional but accessible\n\nFocus on practical insights that can help improve content effectiveness while maintaining ethical persuasion practices.",
+        "options": {
+          "systemMessage": "=## System Prompt (System Message Template):\nYou are an expert psychology and marketing analyst specializing in identifying and analyzing psychological hooks in video content. Your task is to analyze video transcripts and identify psychological triggers, persuasion techniques, and engagement mechanisms.\n\n### Analysis Framework:\n\n**PSYCHOLOGY HOOKS TO IDENTIFY:**\n- Fear of Missing Out (FOMO)\n- Social Proof & Authority\n- Scarcity & Urgency\n- Curiosity Gap\n- Emotional Appeals\n- Pattern Interrupts\n- Storytelling Elements\n- Problem-Solution Framework\n- Social Validation\n\n**RESPONSE FORMAT:**\nProvide structured analysis with:\n1. Content Overview\n2. Key Psychology Hooks (with 1-10 ratings)\n3. Script Structure Analysis\n4. Overall Effectiveness Score\n5. Improvement Recommendations\n\nKeep analysis professional, actionable, and focused on practical insights.\n\n---\n\n## User Prompt Template (Main Prompt):\nAnalyze this video transcript for psychological hooks and persuasion techniques:\n\n**TRANSCRIPT:**\n{{ $json.text }}\n\n**ANALYSIS REQUIRED:**\n1. Identify all psychological hooks present\n2. Rate effectiveness of each hook (1-10)\n3. Analyze script structure (Hook, Problem, Solution, Proof, CTA)\n4. Provide overall effectiveness score\n5. Suggest specific improvements\n\nPlease provide a comprehensive analysis following the framework. Focus on actionable insights that can improve content effectiveness.\n\n---\n\n## Alternative Expression Options:\n\n\n**Option 3 - If using previous node reference:**\n{{ $json.text }}\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        656,
+        -224
+      ],
+      "id": "d525a44d-caf0-42d5-9f38-c7d834aef29b",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.media[0].url }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputPropertyName": "video_data"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        208,
+        -224
+      ],
+      "id": "b1acf4db-f5ef-489c-a455-54bbc2f2351b",
+      "name": "video_download"
+    },
+    {
+      "parameters": {
+        "url": "https://instagram-downloader-download-instagram-stories-videos4.p.rapidapi.com/convert",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "url",
+              "value": "={{ $json.message.text }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-rapidapi-host",
+              "value": "instagram-downloader-download-instagram-stories-videos4.p.rapidapi.com"
+            },
+            {
+              "name": "x-rapidapi-key"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -16,
+        -224
+      ],
+      "id": "ccc0fca8-17e3-4229-8b76-58e796a20edb",
+      "name": "video downloader"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.groq.com/openai/v1/audio/transcriptions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer <API Tokens>"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "whisper-large-v3"
+            },
+            {
+              "name": "response_format",
+              "value": "json"
+            },
+            {
+              "name": "language",
+              "value": "en"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "video_data"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        432,
+        -224
+      ],
+      "id": "fd8c6bf4-4252-4166-b4aa-4f642145d1dd",
+      "name": "Groq-transcribe"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}\n",
+        "text": "=\nThis is the analysed script :{{ $json.part }} ",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1456,
+        -224
+      ],
+      "id": "eb78e75e-73f0-449b-9200-e5ff3b89516b",
+      "name": "Send a text message",
+      "webhookId": "8f50fbde-d04b-4147-ad5d-7feaa0d2003d",
+      "credentials": {
+        "telegramApi": {
+          "id": "p90O3QRb4ctpPBAh",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get the full analysed script text\nconst text = $json.output || $json.fields['Analysed script'];\n\n// Telegram message limit\nconst MAX_LENGTH = 4000; // leave a bit of buffer\n\n// Split into chunks\nconst chunks = [];\nfor (let i = 0; i < text.length; i += MAX_LENGTH) {\n  chunks.push({ part: text.slice(i, i + MAX_LENGTH) });\n}\n\n// Return as separate items\nreturn chunks;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1232,
+        -224
+      ],
+      "id": "3566e0c8-1788-49df-b10a-848a7b9fd307",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "projectId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleVertex",
+      "typeVersion": 1,
+      "position": [
+        640,
+        32
+      ],
+      "id": "99ab421a-0afe-40b4-b72d-288ff4997c66",
+      "name": "Google Vertex Chat Model"
+    },
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -240,
+        -224
+      ],
+      "id": "4418ba97-6102-4b8e-a8d4-cf0ecc002984",
+      "name": "Telegram Trigger",
+      "webhookId": "19991a92-779d-4c42-84b4-f3ffaf26dc93",
+      "credentials": {
+        "telegramApi": {
+          "id": "p90O3QRb4ctpPBAh",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "\n## Rapid API link:\n\nhttps://rapidapi.com/easeapi-easeapi-default/api/instagram-reels-downloader-api/playground/apiendpoint_9f4278d9-1d63-4774-bf72-433635bcc2f2",
+        "width": 576
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -848,
+        -672
+      ],
+      "typeVersion": 1,
+      "id": "ea91517f-517c-4d62-89dc-b9393cffb274",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "base": {
+          "__rl": true,
+          "value": "appq6ScJqIe0mL88j",
+          "mode": "list",
+          "cachedResultName": "video script analyser",
+          "cachedResultUrl": "https://airtable.com/appq6ScJqIe0mL88j"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblMiR6vQJpca4W8v",
+          "mode": "list",
+          "cachedResultName": "script_analyser",
+          "cachedResultUrl": "https://airtable.com/appq6ScJqIe0mL88j/tblMiR6vQJpca4W8v"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Name": "={{ $('Telegram Trigger').item.json.message.from.username }}",
+            "Sharedurl": "={{ $('Telegram Trigger').item.json.message.text }}",
+            "video Url": "={{ $('video downloader').item.json.media[0].url }}",
+            "Thumbnail": "={{ $('video downloader').item.json.media[0].thumbnail }}",
+            "Script": "={{ $('Groq-transcribe').item.json.text }}",
+            "Analysed script": "={{ $json.output }}",
+            "Time": "={{ new Date().toLocaleString(\"en-GB\", { timeZone: \"UTC\" }) }}\n"
+          },
+          "matchingColumns": [
+            "Name"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Time",
+              "displayName": "Time",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Sharedurl",
+              "displayName": "Sharedurl",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "video Url",
+              "displayName": "video Url",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Thumbnail",
+              "displayName": "Thumbnail",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Script",
+              "displayName": "Script",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Analysed script",
+              "displayName": "Analysed script",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        1008,
+        -224
+      ],
+      "id": "aa8e5727-e501-439c-806f-f9431d6d6dca",
+      "name": "Create or update a record",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "0mwbrSoKB8TK1a0P",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Purpose:\nThis workflow automates the process of analyzing Instagram/TikTok/short-form videos for psychological hooks & persuasion techniques. Designed for marketers, coaches, and creators who want actionable insights on their video scripts.\n\n🔹 Workflow Steps:\n\nTelegram Trigger – User submits a video link via Telegram.\n\nVideo Downloader – Fetches the video file from the shared URL.\n\nGroq Transcription (Whisper-large-v3) – Converts video speech into text.\n\nAI Agent (Psychology Hooks Analyzer) – Runs structured analysis on transcript (hooks, persuasion, emotional triggers).\n\nAirtable Integration – Saves user data, video URL, transcript, and analysis results.\n\nCode Splitter – Breaks long analysis text into chunks (Telegram’s 4096 char limit).\n\nTelegram Output – Sends full report back to the user in easy-to-read parts.\n\n🔹 What It Produces:\n\nFull video transcript\n\nStructured psychological analysis (hooks, persuasion tactics, effectiveness rating)\n\nOverall performance score & improvement suggestions\n\nStored record in Airtable for future reference\n\n🔹 Customization Options:\n\nSwap Groq Whisper for OpenAI Whisper or AssemblyAI.\n\nReplace Telegram trigger/output with Slack, Discord, or Web app form.\n\nUse any AI model (Google Vertex, OpenAI, Anthropic) inside the AI Agent node.\n\nConnect Airtable → Google Sheets/Notion for different storage needs.\n",
+        "height": 416,
+        "width": 1824,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -832,
+        -1168
+      ],
+      "typeVersion": 1,
+      "id": "0a6ea9d0-7e5b-480b-873d-b3a4bfa2d463",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "## Setup Process – Psychology Video Analyzer\n\n🔹 Step 1: Telegram Setup\n\nCreate a Telegram bot with @BotFather\n\nCopy your bot token.\n\nAdd credentials in n8n → Telegram API.\n\nReplace Telegram Trigger and Send a text message nodes with your bot details.\n🔹 Step 2: Instagram Video Downloader API\n\nSign up on RapidAPI\n.\n\nSubscribe to the Instagram Downloader API.\n\nCopy your x-rapidapi-key.\n\nInsert it in the video downloader node headers.\n\n🔹 Step 3: Video Transcription (Groq Whisper)\n\nGet an API key from Groq Cloud\n.\n\nAdd credentials in n8n → HTTP Request headers.\n\nThe Groq-transcribe node will automatically output transcripts in English.\n\n🔹 Step 4: AI Agent (Psychology Analysis)\n\nInside the AI Agent node, the System Prompt defines the analysis framework.\n\nYou can connect either:\n\nGoogle Vertex Chat (if you have Google Cloud setup)\n\nOr swap with OpenAI/Anthropic/any LLM provider.\n\nAdjust SystemMessage if you want different analysis styles.\n\n🔹 Step 5: Airtable Setup\n\nCreate a new Airtable base (e.g., Video Script Analyzer).\n\nAdd a table with these fields:\n\nName\n\nShared URL\n\nVideo URL\n\nThumbnail\n\nScript\n\nAnalysed Script\n\nTime\n\nAdd your Airtable API token in n8n.\n\nConnect it in the Create or update a record node.\n\n🔹 Step 6: Handling Telegram Limits\n\nTelegram messages can’t exceed 4096 characters.\n\nThe Code node automatically splits long reports into smaller parts before sending.\n\n🔹 Step 7: Test the Workflow\n\nGo to Telegram → Send a reel URL to your bot.\n\nWorkflow should:\n\nDownload video\n\nTranscribe\n\nRun psychology analysis\n\nSave in Airtable\n\nSend results back to you\n\n🔹 Step 8: Customize for Clients (Optional)\n\nSwap Telegram with Slack, Discord, or Webhooks.\n\nUse Notion/Google Sheets instead of Airtable.\n\nAdd branding (e.g., include your logo in reports).",
+        "height": 416,
+        "width": 1824,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1168,
+        -1168
+      ],
+      "typeVersion": 1,
+      "id": "aef51946-fa40-4c30-91e9-4d7bafed56ef",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "## 1. Receives video link via Telegram",
+        "height": 100,
+        "width": 250,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -240,
+        -374
+      ],
+      "typeVersion": 1,
+      "id": "step-note-viral-TelegramTrigger",
+      "name": "Sticky Note Step 1"
+    },
+    {
+      "parameters": {
+        "content": "## 2. Downloads the video from the URL",
+        "height": 100,
+        "width": 250,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -16,
+        -374
+      ],
+      "typeVersion": 1,
+      "id": "step-note-viral-videodownloader",
+      "name": "Sticky Note Step 2"
+    },
+    {
+      "parameters": {
+        "content": "## 3. Transcribes the audio to text",
+        "height": 100,
+        "width": 250,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        432,
+        -374
+      ],
+      "typeVersion": 1,
+      "id": "step-note-viral-Groqtranscribe",
+      "name": "Sticky Note Step 3"
+    },
+    {
+      "parameters": {
+        "content": "## 4. Analyzes the transcript for psychological hooks",
+        "height": 100,
+        "width": 300,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        656,
+        -374
+      ],
+      "typeVersion": 1,
+      "id": "step-note-viral-AIAgent",
+      "name": "Sticky Note Step 4"
+    },
+    {
+      "parameters": {
+        "content": "## 5. Saves the analysis to Airtable",
+        "height": 100,
+        "width": 250,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1008,
+        -374
+      ],
+      "typeVersion": 1,
+      "id": "step-note-viral-Createorupdatearecord",
+      "name": "Sticky Note Step 5"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Create or update a record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "video_download": {
+      "main": [
+        [
+          {
+            "node": "Groq-transcribe",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "video downloader": {
+      "main": [
+        [
+          {
+            "node": "video_download",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq-transcribe": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Vertex Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "video downloader",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create or update a record": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "169e8075-cbbb-4113-85be-90ad3fb22c2b",
+  "meta": {
+    "instanceId": "18b6eb5e59e3420ea2f59615df8d2d11aaecf1d51bc55b768a83ff438cdaae56"
+  },
+  "id": "dpGdDR8XPc5reJoQ",
+  "tags": [
+    {
+      "updatedAt": "2025-09-22T09:28:03.537Z",
+      "createdAt": "2025-09-22T09:28:03.537Z",
+      "id": "QQqy7cXCGPIKuLLh",
+      "name": "digitalproduct"
+    }
+  ]
+}

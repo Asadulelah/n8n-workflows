@@ -1,0 +1,1228 @@
+{
+  "name": "email writer air",
+  "nodes": [
+    {
+      "parameters": {
+        "query": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Query', ``, 'string') }}",
+        "options": {}
+      },
+      "type": "@tavily/n8n-nodes-tavily.tavilyTool",
+      "typeVersion": 1,
+      "position": [
+        832,
+        144
+      ],
+      "id": "a3e2daf8-d5ea-439f-8fe4-31a69f51515d",
+      "name": "Tavily",
+      "credentials": {
+        "tavilyApi": {
+          "id": "VVpMIqSCKArMyqQD",
+          "name": "Tavily account"
+        }
+      },
+      "notes": "Call this tool for Research purposes."
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Find as much info as you can about \n{{ JSON.stringify($json.basic_info, null, 2) }}.\nHere is the company they are currently working in: {{ $json.basic_info.current_company }}\nMake sure your research is 100% related to them.",
+        "options": {
+          "systemMessage": "=You are a researcher in a business development team. Your job is to find as much research as you can about a prospect company. You must ensure your research is for the correct company and is highly accurate. Your research must always include what the prospect company does in detail. Your research should also highlight any recent news or accomplishments from the company.\n\nTool:\nCall Tavily for Research purposes."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        880,
+        -224
+      ],
+      "id": "15445715-c11d-4f86-8bcc-e5c719489a06",
+      "name": "Research"
+    },
+    {
+      "parameters": {
+        "operation": "Run actor and get dataset",
+        "actorId": {
+          "__rl": true,
+          "value": "VhxlqQXRwhW8H5hNV",
+          "mode": "list",
+          "cachedResultName": "Linkedin Profile Details Scraper + EMAIL (No Cookies Required) (apimaestro/linkedin-profile-detail)",
+          "cachedResultUrl": "https://console.apify.com/actors/VhxlqQXRwhW8H5hNV/input"
+        },
+        "customBody": "={\n    \"includeEmail\": false,\n    \"username\": \"{{ $json['LinkedIn URL'] }}\"\n}",
+        "memory": 4096
+      },
+      "type": "@apify/n8n-nodes-apify.apify",
+      "typeVersion": 1,
+      "position": [
+        656,
+        -80
+      ],
+      "id": "dfc482e3-c20c-46bb-8f47-b199ad1df205",
+      "name": "Run an Actor and get dataset",
+      "credentials": {
+        "apifyApi": {
+          "id": "CG12MsKT3CDLfy2i",
+          "name": "Apify account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {
+          "includeUnpaired": true
+        }
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.1,
+      "position": [
+        3040,
+        -160
+      ],
+      "id": "386ede20-958a-414f-b3ed-e95284862c72",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "model": "anthropic/claude-3.7-sonnet",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        2304,
+        144
+      ],
+      "id": "eaec9f57-715b-482b-9364-3ac1a0450bc1",
+      "name": "Claude 3.7 Sonnet",
+      "credentials": {
+        "openRouterApi": {
+          "id": "iMyv8FG2x9aSI84k",
+          "name": "OpenRouter account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are part of the cold email team for a video editing and personal branding agency that helps professionals, founders, and investors build their online presence by editing high-quality short-form videos (YouTube, Reels, LinkedIn, etc.).\n\nYour job is to create **4 short, natural-sounding cold emails** to start conversations with potential clients. The goal of the emails is to book a quick call to discuss how consistent, well-edited videos can help them grow their audience and personal brand.\n\n# Audience\n\nWe reach out to professionals such as:\n\n* SaaS founders who want to attract investors or talent.\n* Venture capitalists who want to share insights and attract deal flow.\n* Entrepreneurs or executives who want to build authority online.\n\nAdjust the tone and examples based on who the lead is — more casual for founders, more professional for investors, and more friendly for creators.\n\n# Task\n\nCreate a 4-email sequence based on the research and analysis provided.\nEach email should feel personalized, simple, and conversational — not like a template.\n\n## Email #1\n\n**Goal:** Start the conversation and show that we understand what they do.\n**Structure:**\n\n1. Hook — Something personal or relevant from their content, work, or company.\n2. Pain Point — Mention how difficult it is to stay consistent with content or editing as a busy professional.\n3. CTA — Suggest a short call to share how our team handles end-to-end video editing for personal brands.\n\n**Guidelines:**\n\n* Keep it under 100 words.\n* Use plain, simple English (6th-grade reading level).\n* No fluff or salesy words.\n* Start with “Hey {{ $('Search records').item.json['First Name'] }},”\n* End with “Cheers, Ansh/Nirbhay” or “Kind regards, Ansh/Nirbhay”.\n* Make the subject line short (max 4 words) and natural.\n\n## Email #2\n\nThis is a follow-up, same thread, no subject line.\n**Fix implemented here (outcome-based, no implied experience):**\n\n“Hey {{ $('Search records').item.json['First Name'] }}, just wanted to bump this up in case you missed it. If staying consistent with content is something you want to make easier, happy to show you a simple way to do it without spending extra time on editing.”\n\nEnd with “Cheers, Ansh/Nirbhay”.\n\n## Email #3\n\nAnother follow-up (new subject line). Mention a second angle or pain point — e.g. consistency, quality, or storytelling.\n\nEnd with a Calendly link so they can book directly:\n\n“Would you like me to send over a few examples? You can also book a quick chat here: [https://calendly.com/ansh1752003/30min”](https://calendly.com/ansh1752003/30min”)\n\nEnd with “Kind regards, Ansh/Nirbhay”.\n\n## Email #4\n\nFinal follow-up — keep it open and friendly.\nAvoid closing the loop completely.\nWrite it in a way that gives them space to respond later.\n\nExample tone:\n\n“Hey {{ $('Search records').item.json['First Name'] }},\nif this isn’t the right time, no worries, just let me know and I’ll check back next month.\nHope everything’s going great on your end!”\n\nEnd with “Cheers, Ansh/Nirbhay”.\n\n---\n\n# Output format\n\nYour response must follow this JSON structure exactly:\n\n{\n\"email1\": {\n\"subject\": \"TEXT-HERE\",\n\"body\": \"HTML-HERE\"\n},\n\"email2\": {\n\"body\": \"HTML-HERE\"\n},\n\"email3\": {\n\"subject\": \"TEXT-HERE\",\n\"body\": \"HTML-HERE\"\n},\n\"email4\": {\n\"subject\": \"TEXT-HERE\",\n\"body\": \"HTML-HERE\"\n}\n}\n\n*Every email should feel like a human wrote it.*\n*Do not wrap in `json`.*\n*Do not output anything else.*\n*Use only \\n for line breaks (plain text).*\n*Do not use em dashes.*\n*Do not write footer or signature beyond “– Ansh” or “– Nirbhay”.*\n\n# Task Inputs\n\nUse the following information:\n\n1. Research: Findings about the prospect ({{ $('Research').item.json.output }})\n2. Analysis: Insights extracted from the research ({{ $json.output }})",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        2016,
+        -192
+      ],
+      "id": "27d7600d-2c4e-4f86-bc76-eb5c004acb71",
+      "name": "Email Writer"
+    },
+    {
+      "parameters": {
+        "batchSize": 4,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        480,
+        -336
+      ],
+      "id": "14926888-711a-4ca4-aac6-ac239d7c9aae",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1312,
+        -112
+      ],
+      "id": "77164765-d2ae-4043-a41c-61617bb595c3",
+      "name": "Merge1"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        1664,
+        448
+      ],
+      "id": "dd19f24d-11fe-425f-b714-312ce5e71499",
+      "name": "Google Gemini Chat Model1",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "qj5K9vFNXhZMcYiZ",
+          "name": "Google Gemini(PaLM) Api account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=# Overview\n\nYou are part of the cold email team at a **video editing and personal branding agency** that helps founders, investors, and professionals grow their audience by turning raw videos into high-quality short-form content for platforms like LinkedIn, YouTube, and Instagram.\n\nThe goal is to help busy professionals stay consistent with their personal brand without spending time editing or managing content.\n\n# Task\n\nYour job is to analyze the research found on a prospect (from LinkedIn and the web) to prepare insights for a personalized cold email. You must find the following:\n\n---\n\n### 1. Personalization Opportunities\nIdentify what makes this person or their work unique, so the email can feel personal and relevant.\n\nYou can look for:\n- Content they’ve posted or been featured in.\n- Notable achievements or company milestones.\n- Unique traits in their professional journey or background.\n- Thought leadership topics they care about (e.g., SaaS growth, investing, AI, startups).\n\nEach personalization should be specific enough to prove that we actually looked them up, not AI-generated fluff.\n\n---\n\n### 2. Pain Points & Solutions\nBased on their role, company, and industry, predict the biggest challenges they might face when it comes to building a personal brand or creating consistent video content.\n\nCommon examples:\n- They don’t have time to edit or post regularly.\n- Their video content lacks consistency or quality.\n- They struggle to repurpose their podcasts, webinars, or talks into short-form clips.\n- They want to build credibility online but aren’t sure how to show up consistently.\n\nThen, map each pain point to a clear and actionable solution the agency can provide.\n\nExample offers:\n- End-to-end video editing and repurposing.\n- Short-form clip creation optimized for LinkedIn/YouTube/Instagram.\n- Content calendar and posting support.\n- Personal brand strategy assistance.\n\n---\n\n# Output Format\n\nYour output must be in the following format:\n\n*Personalization*\n\n1. Opportunity: HERE  \n   Supporting Evidence: HERE  \n\n2. Opportunity: HERE  \n   Supporting Evidence: HERE  \n\n(…add more as needed)\n\n⸻\n\n*Pain Points & Solutions*\n\n1. Pain Point: HERE  \n   Supporting Evidence: HERE  \n   Offer: HERE  \n\n2. Pain Point: HERE  \n   Supporting Evidence: HERE  \n   Offer: HERE  \n\nEach “Supporting Evidence” must come directly from the research data provided — ideally a specific quote, LinkedIn post detail, or company mention. Do not write vague or generic content.\n\nIf there’s no personalization available, return “null” for that section.\n\n---\n\n# Complete the analysis for the following prospect.\n\nResearch:\n\n1. Scraped LinkedIn profile in JSON format:  \n   {{ $('Run an Actor and get dataset').item.json.basic_info }}\n\n2. Company research from searching the web:  \n   {{ $json.output }}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        1584,
+        208
+      ],
+      "id": "688f6061-aced-4e77-a529-b7dc979abad9",
+      "name": "Analyse Prospect1"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        1040,
+        304
+      ],
+      "id": "88576871-f70c-47ae-b4c1-d25e94622b09",
+      "name": "Google Gemini Chat Model2",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "V7SGuUq4e0m7APSd",
+          "name": "Google Gemini(PaLM) Api account 4"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "appwLTnPTW8BcJ8V5",
+          "mode": "list",
+          "cachedResultName": "Lead Database",
+          "cachedResultUrl": "https://airtable.com/appwLTnPTW8BcJ8V5"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblIEg0mBxfFYCKJp",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://airtable.com/appwLTnPTW8BcJ8V5/tblIEg0mBxfFYCKJp"
+        },
+        "filterByFormula": "{Analysed} = \"No\"",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        -144,
+        -208
+      ],
+      "id": "6965acd7-1ebd-420d-b7c8-ed751f433907",
+      "name": "Search records",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "0mwbrSoKB8TK1a0P",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "base": {
+          "__rl": true,
+          "value": "appwLTnPTW8BcJ8V5",
+          "mode": "list",
+          "cachedResultName": "Lead Database",
+          "cachedResultUrl": "https://airtable.com/appwLTnPTW8BcJ8V5"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblIEg0mBxfFYCKJp",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://airtable.com/appwLTnPTW8BcJ8V5/tblIEg0mBxfFYCKJp"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Analysed": "Yes",
+            "Email#1 Body": "={{ $json.email1.body }}",
+            "Email#1 Subject": "={{ $json.email1.subject }}",
+            "Email#3 Subject": "={{ $json.email3.subject }}",
+            "Email#3 Body": "={{ $json.email3.body }}",
+            "Email #2 Body": "={{ $json.email2.body }}",
+            "Email#4 Subject": "={{ $json.email4.subject }}",
+            "Email#4 Body": "={{ $json.email4.body }}",
+            "LinkedIn URL": "={{ $json['LinkedIn URL'] }}"
+          },
+          "matchingColumns": [
+            "LinkedIn URL"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "First Name",
+              "displayName": "First Name",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Last Name",
+              "displayName": "Last Name",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Email Address",
+              "displayName": "Email Address",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Phone Number",
+              "displayName": "Phone Number",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Country ",
+              "displayName": "Country ",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Location",
+              "displayName": "Location",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Industry",
+              "displayName": "Industry",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Company Name",
+              "displayName": "Company Name",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Job Title",
+              "displayName": "Job Title",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Seniority",
+              "displayName": "Seniority",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Revenue",
+              "displayName": "Revenue",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Website URL",
+              "displayName": "Website URL",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "LinkedIn URL",
+              "displayName": "LinkedIn URL",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Twitter URL",
+              "displayName": "Twitter URL",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Analysed",
+              "displayName": "Analysed",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Research Report",
+              "displayName": "Research Report",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Email#1 Body",
+              "displayName": "Email#1 Body",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Email#1 Subject",
+              "displayName": "Email#1 Subject",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Email #2 Body",
+              "displayName": "Email #2 Body",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Email#3 Body",
+              "displayName": "Email#3 Body",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Email#4 Body",
+              "displayName": "Email#4 Body",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Email#3 Subject",
+              "displayName": "Email#3 Subject",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Email#4 Subject",
+              "displayName": "Email#4 Subject",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        3392,
+        432
+      ],
+      "id": "c18ec78f-4b2a-4774-bace-1284fc0a120b",
+      "name": "Create or update a record1",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "0mwbrSoKB8TK1a0P",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -528,
+        112
+      ],
+      "id": "4060b0d3-f318-4d7c-8778-4087670b14da",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "maxItems": 80
+      },
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        240,
+        128
+      ],
+      "id": "3b02dfb5-67f9-4082-bc46-4f6a3fc9686f",
+      "name": "Limit"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        2144,
+        256
+      ],
+      "id": "6849b498-1aa7-421c-a1e9-0068827056b6",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "iSfHbwVOjnlRNePU",
+          "name": "Google Gemini(PaLM) Api account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// The AI response is inside $json.output and usually looks like:\n// ```json\n// { \"email1\": {...}, \"email2\": {...}, ... }\n// ```\n\nlet raw = $json.output || \"\";\n\n// Remove code fences (```json ... ```)\nraw = raw.replace(/```json/g, \"\").replace(/```/g, \"\").trim();\n\n// Parse into real JSON\nlet parsed;\ntry {\n  parsed = JSON.parse(raw);\n} catch (e) {\n  throw new Error(\"Failed to parse AI JSON: \" + e.message + \"\\nRaw: \" + raw);\n}\n\nreturn [\n  {\n    json: parsed\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3392,
+        -208
+      ],
+      "id": "5fcaa4e8-9b38-4e65-9cd5-e7991326a0c8",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={{ $json.output }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2592,
+        128
+      ],
+      "id": "126b0cff-0064-4931-b424-0a74f5784064",
+      "name": "Emails",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "base": {
+          "__rl": true,
+          "value": "appwLTnPTW8BcJ8V5",
+          "mode": "list",
+          "cachedResultName": "Lead Database",
+          "cachedResultUrl": "https://airtable.com/appwLTnPTW8BcJ8V5"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblIEg0mBxfFYCKJp",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://airtable.com/appwLTnPTW8BcJ8V5/tblIEg0mBxfFYCKJp"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "LinkedIn URL": "={{ $('Loop Over Items').item.json['LinkedIn URL'] }}",
+            "Research Report": "={{ $json.output }}"
+          },
+          "matchingColumns": [
+            "LinkedIn URL"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "First Name",
+              "displayName": "First Name",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Last Name",
+              "displayName": "Last Name",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Email Address",
+              "displayName": "Email Address",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Phone Number",
+              "displayName": "Phone Number",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Country ",
+              "displayName": "Country ",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Location",
+              "displayName": "Location",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Industry",
+              "displayName": "Industry",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Company Name",
+              "displayName": "Company Name",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Job Title",
+              "displayName": "Job Title",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Seniority",
+              "displayName": "Seniority",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Revenue",
+              "displayName": "Revenue",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Website URL",
+              "displayName": "Website URL",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "LinkedIn URL",
+              "displayName": "LinkedIn URL",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Twitter URL",
+              "displayName": "Twitter URL",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Analysed",
+              "displayName": "Analysed",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Research Report",
+              "displayName": "Research Report",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Email#1 Body",
+              "displayName": "Email#1 Body",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Email#1 Subject",
+              "displayName": "Email#1 Subject",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Email #2 Body",
+              "displayName": "Email #2 Body",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Email#3 Body",
+              "displayName": "Email#3 Body",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Email#4 Body",
+              "displayName": "Email#4 Body",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Email#3 Subject",
+              "displayName": "Email#3 Subject",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Email#4 Subject",
+              "displayName": "Email#4 Subject",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        1584,
+        -400
+      ],
+      "id": "44b04f53-d926-4402-a11b-29975d1c4936",
+      "name": "Create or update a record2",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "0mwbrSoKB8TK1a0P",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## 1. Loops through each lead",
+        "height": 100,
+        "width": 250,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        480,
+        -486
+      ],
+      "typeVersion": 1,
+      "id": "step-note-email-LoopOverItems",
+      "name": "Sticky Note Step 1"
+    },
+    {
+      "parameters": {
+        "content": "## 2. Scrapes the prospect's LinkedIn profile",
+        "height": 100,
+        "width": 300,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        656,
+        -230
+      ],
+      "typeVersion": 1,
+      "id": "step-note-email-RunanActorandgetdataset",
+      "name": "Sticky Note Step 2"
+    },
+    {
+      "parameters": {
+        "content": "## 3. AI Researcher searches the web for recent company news using Tavily",
+        "height": 100,
+        "width": 350,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        880,
+        -374
+      ],
+      "typeVersion": 1,
+      "id": "step-note-email-Research",
+      "name": "Sticky Note Step 3"
+    },
+    {
+      "parameters": {
+        "content": "## 4. Claude writes a 4-email sequence based on the research",
+        "height": 100,
+        "width": 350,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        2016,
+        -342
+      ],
+      "typeVersion": 1,
+      "id": "step-note-email-EmailWriter",
+      "name": "Sticky Note Step 4"
+    },
+    {
+      "parameters": {
+        "content": "## 5. Saves the ready-to-send emails back into the CRM",
+        "height": 100,
+        "width": 350,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        3392,
+        282
+      ],
+      "typeVersion": 1,
+      "id": "step-note-email-Createorupdatearecord1",
+      "name": "Sticky Note Step 5"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Tavily": {
+      "ai_tool": [
+        [
+          {
+            "node": "Research",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Research": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run an Actor and get dataset": {
+      "main": [
+        [
+          {
+            "node": "Research",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Create or update a record1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude 3.7 Sonnet": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Email Writer",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Writer": {
+      "main": [
+        [
+          {
+            "node": "Emails",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Run an Actor and get dataset",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge1": {
+      "main": [
+        [
+          {
+            "node": "Analyse Prospect1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Create or update a record2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Analyse Prospect1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyse Prospect1": {
+      "main": [
+        [
+          {
+            "node": "Email Writer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Research",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search records": {
+      "main": [
+        [
+          {
+            "node": "Limit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create or update a record1": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Search records",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        []
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        []
+      ]
+    },
+    "Emails": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "ec99bea3-5798-44e1-baba-ba6664593f4b",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "18b6eb5e59e3420ea2f59615df8d2d11aaecf1d51bc55b768a83ff438cdaae56"
+  },
+  "id": "DWke0EiiNE3ma6oz",
+  "tags": []
+}
